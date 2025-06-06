@@ -1,0 +1,19 @@
+/* Visit https://aka.ms/tsconfig to read more about this file */
+{
+  "compilerOptions": {
+    "target": "es2016",
+    "module": "commonjs",
+
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "strict": true,
+    "skipLibCheck": true,
+    "typeRoots": ["env.d.ts", "./node_modules/@types"]
+  },
+  "include": ["src/**/*", "env.d.ts"],
+  "exclude": ["dist"]
+}

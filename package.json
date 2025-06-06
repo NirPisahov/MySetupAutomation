@@ -1,0 +1,24 @@
+{
+  "name": "my-setup-automation",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "keywords": [],
+  "author": "Nir Pisahov",
+  "license": "ISC",
+  "description": "My desktop setup automation - Control LED strip and a custom made motorized monitor arm with Raspberry PI",
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "onoff": "^6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "build": "tsc",
+    "deploy": "npm run build && ssh nirpisahov@10.0.0.32 'mkdir -p ~/actuator-control && rm -rf ~/actuator-control/dist' && scp -r dist package.json .env nirpisahov@10.0.0.32:~/actuator-control",
+    "start-remote": "ssh nirpisahov@10.0.0.32 'cd ~/actuator-control && sudo HOME=/home/nirpisahov node dist/index.js'",
+    "install-remote-packages": "ssh -T nirpisahov@10.0.0.32 'cd ~/actuator-control && npm install --no-progress --no-audit --no-fund --omit=dev'",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
