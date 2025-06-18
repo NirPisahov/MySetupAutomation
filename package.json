@@ -16,9 +16,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "deploy": "npm run build && ssh nirpisahov@10.0.0.32 'mkdir -p ~/actuator-control && rm -rf ~/actuator-control/dist' && scp -r dist package.json .env nirpisahov@10.0.0.32:~/actuator-control",
-    "start-remote": "ssh nirpisahov@10.0.0.32 'cd ~/actuator-control && sudo HOME=/home/nirpisahov node dist/index.js'",
-    "install-remote-packages": "ssh -T nirpisahov@10.0.0.32 'cd ~/actuator-control && npm install --no-progress --no-audit --no-fund --omit=dev'",
+    "deploy": "npm run build && ssh nirpisahov@10.0.0.34 'mkdir -p ~/actuator-control && rm -rf ~/actuator-control/dist' && scp -r dist package.json .env config nirpisahov@10.0.0.34:~/actuator-control",
+    "start-remote": "ssh nirpisahov@10.0.0.34 'cd ~/actuator-control && sudo HOME=/home/nirpisahov node dist/index.js'",
+    "install-remote-packages": "ssh -T nirpisahov@10.0.0.34 'cd ~/actuator-control && npm install --no-progress --no-audit --no-fund --omit=dev'",
     "test": "echo \"Error: no test specified\" && exit 1"
   }
 }

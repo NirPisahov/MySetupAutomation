@@ -26,7 +26,12 @@ for (const envVar of requiredEnvVars) {
 
 async function loadPositions(): Promise<Positions> {
   try {
-    const positionsPath = path.join(__dirname, "config", "positions.json");
+    const positionsPath = path.join(
+      __dirname,
+      "..",
+      "config",
+      "positions.json"
+    );
     const data = await fs.readFile(positionsPath, "utf-8");
     return JSON.parse(data) as Positions;
   } catch (error) {
@@ -64,8 +69,8 @@ async function setMode(
     throw new Error(`Position "${positionName}" not found in configuration`);
   }
 
-  await setStroke(actuator, position.stroke);
   await setLED(led, position.led);
+  await setStroke(actuator, position.stroke);
 }
 
 async function main() {
@@ -124,10 +129,18 @@ async function main() {
         await setLED(ledStrip, ledState);
         break;
 
-      case "info":
+      case "status":
         await printInfo(cache);
         break;
 
+      case "calibrate":
+        console.log("Starting calibration process...");
+        ledStrip.calibrate();
+        await actuator.calibrate();
+        console.log("Calibration completed successfully");
+        break;
+
+      case "info":
       default:
         console.log("Available commands:");
         console.log(
@@ -136,6 +149,9 @@ async function main() {
         console.log("  stroke <number>       - Set stroke length in mm");
         console.log("  led <on/off>          - Set LED state");
         console.log("  info                  - Print current state");
+        console.log(
+          "  calibrate             - Calibrate actuator to zero position"
+        );
         break;
     }
 
