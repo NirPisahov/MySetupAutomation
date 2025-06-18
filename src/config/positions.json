@@ -1,0 +1,14 @@
+{
+  "working": {
+    "stroke": 120,
+    "led": "on"
+  },
+  "rest": {
+    "stroke": 0,
+    "led": "off"
+  },
+  "half": {
+    "stroke": 75,
+    "led": "on"
+  }
+}

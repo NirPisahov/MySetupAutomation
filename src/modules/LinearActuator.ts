@@ -1,75 +1,94 @@
 import { ok } from "node:assert";
 import { inBounds, sleep } from "../utils";
-import { GPIO_Component } from "./GPIO_Component";
+import { MotorDriver, Direction } from "./MotorDriver";
+import { CleanableResource } from "../types/CleanableResource";
 
-type Direction = "extend" | "retract";
-type CurrentFlowMode = "on" | "off";
-
-type LinearActuatorProps = {
-  readonly relayPin: number;
-  readonly mosfetPin: number;
+export interface LinearActuatorProps {
+  readonly pin1: number;
+  readonly pin2: number;
   readonly speed: number; // mm per second
   readonly strokeLength: number; // mm
   readonly initialPosition: number;
   readonly onCurrentPositionChange?: (position: number) => Promise<unknown>;
-};
+}
 
-const factor = 1.1;
+// Safety factor to prevent mechanical damage
+const SAFETY_FACTOR = 1.1;
 
-export class LinearActuator {
+export class LinearActuator implements CleanableResource {
   public readonly props: LinearActuatorProps;
   private currentPosition: number; // mm
+  protected readonly motorDriver: MotorDriver;
 
-  protected readonly MAX_MOVEMENT_DURATION: number;
+  private isMoving: boolean = false;
+
   protected readonly MAX_MOVEMENT_DISTANCE: number;
-
-  protected readonly relay: GPIO_Component;
-  protected readonly mosfet: GPIO_Component;
+  protected readonly MAX_MOVEMENT_DURATION: number;
 
   constructor(props: LinearActuatorProps) {
     this.props = props;
     this.currentPosition = this.props.initialPosition;
+    this.motorDriver = new MotorDriver(props.pin1, props.pin2);
 
-    this.relay = new GPIO_Component(props.relayPin);
-    this.mosfet = new GPIO_Component(props.mosfetPin);
-
-    this.MAX_MOVEMENT_DISTANCE = props.strokeLength * factor;
+    // Calculate maximum safe movement distance and duration
+    this.MAX_MOVEMENT_DISTANCE = props.strokeLength * SAFETY_FACTOR;
     this.MAX_MOVEMENT_DURATION = this.toDurationMs(this.MAX_MOVEMENT_DISTANCE);
   }
 
-  public async moveActuator(direction: Direction, durationMs: number) {
+  public async moveActuator(
+    direction: Direction,
+    durationMs: number
+  ): Promise<void> {
     ok(
       durationMs >= 0 && durationMs <= this.MAX_MOVEMENT_DURATION,
-      "Invalid duration"
+      `Invalid duration: ${durationMs}ms. Must be between 0 and ${this.MAX_MOVEMENT_DURATION}ms`
     );
-    ok(direction === "extend" || direction === "retract", "Invalid direction");
+    ok(
+      direction === "extend" || direction === "retract",
+      `Invalid direction: ${direction}`
+    );
+
     if (durationMs === 0) return;
+    if (this.isMoving) {
+      throw new Error("Actuator is already moving");
+    }
 
-    console.log(`Starting to ${direction} actuator for ${durationMs} ms...`);
+    try {
+      this.isMoving = true;
+      console.log(`Starting to ${direction} actuator for ${durationMs}ms...`);
 
-    this.setMovementDirection(direction);
-    this.setCurrentFlow("on");
+      await this.motorDriver.move(direction);
+      await sleep(durationMs);
 
-    await sleep(durationMs);
+      // Calculate distance moved based on duration and speed
+      const distance = (durationMs / 1000) * this.props.speed; // Convert ms to s, then multiply by speed
+      let newPosition = this.currentPosition;
+      if (direction === "extend") {
+        newPosition += distance;
+      } else {
+        newPosition -= distance;
+      }
 
-    this.stop();
-
-    // update current position
-    const distance = durationMs * this.props.speed;
-
-    let newPosition = this.currentPosition;
-    if (direction === "extend") newPosition += distance;
-    else if (direction === "retract") newPosition -= distance;
-
-    this.setPositionValue(newPosition);
-
-    console.log(`Finished ${direction}`);
+      this.setPositionValue(newPosition);
+      console.log(
+        `Finished ${direction} to position ${newPosition.toFixed(2)}mm`
+      );
+    } catch (error) {
+      console.error(`Failed to move actuator: ${error}`);
+      throw new Error(`Failed to move actuator: ${error}`);
+    } finally {
+      this.stop();
+      this.isMoving = false;
+    }
   }
 
-  public async moveActuatorByDistance(direction: Direction, distance: number) {
+  public async moveActuatorByDistance(
+    direction: Direction,
+    distance: number
+  ): Promise<void> {
     ok(
       distance >= 0 && distance <= this.MAX_MOVEMENT_DISTANCE,
-      "Invalid distance"
+      `Invalid distance: ${distance}mm. Must be between 0 and ${this.MAX_MOVEMENT_DISTANCE}mm`
     );
     if (distance === 0) return;
 
@@ -77,90 +96,77 @@ export class LinearActuator {
     await this.moveActuator(direction, duration);
   }
 
-  public async fullyExtend() {
+  public async fullyExtend(): Promise<void> {
     console.log("Fully extending actuator...");
-
-    const distance = (this.props.strokeLength - this.currentPosition) * factor;
-
-    await this.moveActuatorByDistance("extend", distance);
+    // Calculate remaining distance to full extension
+    const remainingDistance = this.props.strokeLength - this.currentPosition;
+    await this.moveActuatorByDistance("extend", remainingDistance);
   }
 
-  public async fullyRetract() {
-    console.log("Fully Retracting actuator...");
-
-    const distance = this.currentPosition * factor;
-
-    await this.moveActuatorByDistance("retract", distance);
+  public async fullyRetract(): Promise<void> {
+    console.log("Fully retracting actuator...");
+    // Calculate distance to full retraction
+    const distanceToRetract = this.currentPosition;
+    await this.moveActuatorByDistance("retract", distanceToRetract);
   }
 
   public getPosition(): number {
     return this.currentPosition;
   }
 
-  public async setPositionAsync(position: number) {
-    ok(position >= 0 && position <= this.props.strokeLength);
+  public async setPositionAsync(position: number): Promise<void> {
+    ok(
+      position >= 0 && position <= this.props.strokeLength,
+      `Invalid position: ${position}mm. Must be between 0 and ${this.props.strokeLength}mm`
+    );
+
     if (position === this.getPosition()) return;
 
-    console.log(`Starting actuator for in ${position}mm height...`);
+    console.log(`Moving actuator to ${position}mm height...`);
+    const distance = Math.abs(position - this.getPosition());
+    const direction = position > this.getPosition() ? "extend" : "retract";
 
-    const distance = position - this.getPosition();
-
-    if (distance > 0) {
-      await this.moveActuatorByDistance("extend", distance);
-    } else {
-      await this.moveActuatorByDistance("retract", -distance);
-    }
+    await this.moveActuatorByDistance(direction, distance);
   }
 
-  public stop() {
-    console.log("Stopping actuator (cutting power)...");
-    this.setCurrentFlow("off");
-    this.relay.low();
+  public stop(): void {
+    if (!this.isMoving) return;
+
+    console.log("Stopping actuator...");
+    this.motorDriver.stop();
   }
 
-  public async calibrate() {
+  public async calibrate(): Promise<void> {
     console.log("Calibrating actuator...");
-
-    await this.moveActuatorByDistance("retract", this.MAX_MOVEMENT_DISTANCE);
+    // Move to fully retracted position
+    await this.moveActuator("retract", this.MAX_MOVEMENT_DURATION);
+    // Reset position to 0
+    this.setPositionValue(0);
   }
 
-  public cleanup() {
-    console.log("Cleaning up GPIOs...");
-    this.relay.flush();
-    this.mosfet.flush();
+  public async cleanup(): Promise<void> {
+    console.log("Cleaning up actuator...");
+    this.stop();
+    this.motorDriver.cleanup();
   }
 
-  private setCurrentFlow(mode: CurrentFlowMode) {
-    if (mode === "on") {
-      this.mosfet.high(); // HIGH -> MOSFET ON (current flows)
-    } else if (mode === "off") {
-      this.mosfet.low(); // LOW -> MOSFET OFF -> No power to actuator
-    } else {
-      throw new Error("Invalid mode specified");
-    }
+  private toDurationMs(distance: number): number {
+    // Convert distance (mm) to duration (ms) based on speed (mm/s)
+    return Math.ceil((distance * 1000) / this.props.speed);
   }
 
-  private setMovementDirection(direction: Direction) {
-    if (direction === "extend") {
-      this.relay.low(); // LOW -> Relay OFF -> Normal polarity (+12V)
-    } else if (direction === "retract") {
-      this.relay.high(); // HIGH -> Relay ON -> Reversed polarity (-12V)
-    } else {
-      throw new Error("Invalid direction specified");
-    }
-  }
-
-  private toDurationMs(distance: number) {
-    const durationMs = Math.ceil((distance * 1000) / this.props.speed);
-    return durationMs;
-  }
-
-  private setPositionValue(position: number) {
+  private setPositionValue(position: number): void {
     this.currentPosition = inBounds(position, 0, this.props.strokeLength);
-    console.log(`Position set to ${this.currentPosition}mm height...`);
+    console.log(
+      `Position set to ${this.currentPosition.toFixed(2)}mm height...`
+    );
 
     if (this.props.onCurrentPositionChange) {
-      this.props.onCurrentPositionChange(this.currentPosition);
+      this.props
+        .onCurrentPositionChange(this.currentPosition)
+        .catch((error) => {
+          console.error("Failed to notify position change:", error);
+        });
     }
   }
 }
