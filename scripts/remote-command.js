@@ -26,7 +26,9 @@ const username = process.env.PI_USERNAME;
 
 // Map commands to their respective SSH commands
 const commandMap = {
-  start: `cd ~/actuator-control && sudo HOME=/home/${username} node dist/index.js`,
+  start: `cd ~/actuator-control && sudo HOME=/home/${username} node dist/index.js ${process.argv
+    .slice(3)
+    .join(" ")}`,
   install: `cd ~/actuator-control && npm install --no-progress --no-audit --no-fund --omit=dev`,
 };
 

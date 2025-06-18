@@ -16,11 +16,11 @@
   },
   "scripts": {
     "build": "tsc",
-    "find-pi": "node scripts/find-pi.js",
     "deploy": "npm run find-pi && npm run build && node scripts/deploy.js",
-    "start-remote": "node scripts/remote-command.js start",
     "install-remote-packages": "npm run find-pi && node scripts/remote-command.js install",
-    "ssh-remote": "npm run find-pi && node scripts/ssh-remote.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "find-pi": "node scripts/find-pi.js",
+    "start-remote": "node scripts/remote-command.js start",
+    "ssh-remote": "npm run find-pi && node scripts/ssh-remote.js"
   }
 }

@@ -20,7 +20,7 @@ const username = process.env.PI_USERNAME;
 const filesToDeploy = ["dist", "package.json", ".env", "config", "src"];
 
 // Deploy command
-const deployCommand = `ssh ${username}@${piIP} 'mkdir -p ~/actuator-control && rm -rf ~/actuator-control/dist' && scp -r ${filesToDeploy.join(
+const deployCommand = `ssh ${username}@${piIP} 'mkdir -p ~/actuator-control && rm -rf ~/actuator-control/dist && rm -rf ~/actuator-control/src && rm -rf ~/actuator-control/config' && scp -r ${filesToDeploy.join(
   " "
 )} ${username}@${piIP}:~/actuator-control`;
 
