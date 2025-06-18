@@ -17,3 +17,6 @@ yarn-error.log
 
 # Temporary resources
 temp/
+
+# Scripts
+scripts/pi-ip.txt

@@ -1,6 +1,5 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import * as os from "os";
 import { LEDState } from "../types/positions";
 
 export type CacheData = {

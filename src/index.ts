@@ -12,9 +12,22 @@ dotenv.config();
 
 // Validate required environment variables
 const requiredEnvVars = [
+  // Cache files
   "CACHE_FILE_NAME",
+
+  // Config files
+  "POSITIONS_FILE_NAME",
+
+  // Raspberry Pi
+  "PI_USERNAME",
+  "PI_HOSTNAME",
+  // "PI_DEFAULT_IP", // not really required
+
+  // Actuator
   "MOTOR_DRIVER_PIN1",
   "MOTOR_DRIVER_PIN2",
+
+  // LED Strip
   "LED_MOSFET_PIN",
 ];
 
@@ -30,7 +43,7 @@ async function loadPositions(): Promise<Positions> {
       __dirname,
       "..",
       "config",
-      "positions.json"
+      process.env.POSITIONS_FILE_NAME!
     );
     const data = await fs.readFile(positionsPath, "utf-8");
     return JSON.parse(data) as Positions;
@@ -74,7 +87,9 @@ async function setMode(
 }
 
 async function main() {
-  const cache = new SetupCache(process.env.CACHE_FILE_NAME!);
+  const cache = new SetupCache(
+    path.join(__dirname, "..", "automation-cache", process.env.CACHE_FILE_NAME!)
+  );
 
   try {
     // Load initial state from cache

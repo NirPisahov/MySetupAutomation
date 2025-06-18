@@ -16,9 +16,11 @@
   },
   "scripts": {
     "build": "tsc",
-    "deploy": "npm run build && ssh nirpisahov@10.0.0.34 'mkdir -p ~/actuator-control && rm -rf ~/actuator-control/dist' && scp -r dist package.json .env config nirpisahov@10.0.0.34:~/actuator-control",
-    "start-remote": "ssh nirpisahov@10.0.0.34 'cd ~/actuator-control && sudo HOME=/home/nirpisahov node dist/index.js'",
-    "install-remote-packages": "ssh -T nirpisahov@10.0.0.34 'cd ~/actuator-control && npm install --no-progress --no-audit --no-fund --omit=dev'",
+    "find-pi": "node scripts/find-pi.js",
+    "deploy": "npm run find-pi && npm run build && node scripts/deploy.js",
+    "start-remote": "node scripts/remote-command.js start",
+    "install-remote-packages": "npm run find-pi && node scripts/remote-command.js install",
+    "ssh-remote": "npm run find-pi && node scripts/ssh-remote.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   }
 }
